@@ -58,9 +58,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   child: Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: CustomRoundedButtom(
-                  onPressed: () {
-                    _firestore.collection('messages').add()
-                  },
+                  onPressed: () {},
                   title: 'send',
                   color: Colors.blue,
                 ),
