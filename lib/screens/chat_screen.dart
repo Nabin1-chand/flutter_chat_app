@@ -1,4 +1,4 @@
-import 'package:chat_app/screens/welcome_screen.dart';
+import 'package:chat_app/constant/constant.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -14,6 +14,8 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final _auth = FirebaseAuth.instance;
   final _firestore = FirebaseFirestore.instance;
+  String messageText = '';
+  User? loggedInUser;
 
   @override
   void initState() {
@@ -27,10 +29,25 @@ class _ChatScreenState extends State<ChatScreen> {
       final user = _auth.currentUser;
       if (user != null) {
         // print('welcome')
-        print(user.email);
+        loggedInUser = user;
+        print(loggedInUser?.email);
       }
     } catch (e) {
       print(e);
+    }
+  }
+
+  // void getMessages() async {
+  //   final messages = await _firestore.collection('messages').get();
+  //   for (var message in messages.docs) {
+  //     print(message.data());
+  //   }
+  // }
+  void messageStream() async {
+    await for (var snapshot in _firestore.collection('messages').snapshots()) {
+      for (var message in snapshot.docs) {
+        print(message.data());
+      }
     }
   }
 
@@ -41,29 +58,71 @@ class _ChatScreenState extends State<ChatScreen> {
         leading: IconButton(onPressed: () {}, icon: Icon(Icons.arrow_back_ios)),
         title: Text('Chat'),
         centerTitle: true,
-        actions: [IconButton(onPressed: () {}, icon: Icon(Icons.close))],
+        actions: [
+          IconButton(
+              onPressed: () {
+                // getMessages();
+                messageStream();
+              },
+              icon: Icon(Icons.close))
+        ],
         backgroundColor: Colors.lightBlueAccent,
       ),
       body: Column(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Expanded(
-                  flex: 2,
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: TextFormField(),
-                  )),
-              Expanded(
-                  child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: CustomRoundedButtom(
-                  onPressed: () {},
-                  title: 'send',
-                  color: Colors.blue,
-                ),
-              ))
-            ],
+          StreamBuilder(
+              stream: _firestore.collection('messages').snapshots(),
+              builder: (context, snapshots) {
+                final messages = snapshots.data?.docs;
+                List<Text> messageWidgets = [];
+                for (var message in messages!) {
+                  final messageText = message.get('text');
+                  final messageSender = message.get('sender');
+                  final messagewidget =
+                      Text('$messageText from $messageSender');
+                  messageWidgets.add(messagewidget);
+                }
+                return Column(
+                  children: messageWidgets,
+                );
+              }),
+          Container(
+            decoration: kMessageContainerDecoration,
+            child: Row(
+              // crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                    child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: TextField(
+                    onChanged: (value) {
+                      messageText = value;
+                      print(messageText);
+                    },
+                    decoration: const InputDecoration(
+                        hintText: 'Type your message here....'),
+                  ),
+                )),
+                // CustomRoundedButtom(
+                //   onPressed: () {},
+                //   title: 'send',
+                // )
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  child: ElevatedButton(
+                      onPressed: () {
+                        _firestore.collection('messages').add({
+                          'text': messageText,
+                          'sender': loggedInUser?.email
+                        });
+                      },
+                      child: Text('Send')),
+                )
+              ],
+            ),
           ),
         ],
       ),
